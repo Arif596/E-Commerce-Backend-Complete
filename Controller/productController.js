@@ -81,7 +81,7 @@ const FetchAllProduct = catchAsyncError(async (req, res, next) => {
   }
   // Product filter by rating
   if (ratings) {
-    newCondition.push(`ratings>= $${index}`);
+    newCondition.push(`p.ratings>= $${index}`);
     value.push(ratings);
     index++;
   }
@@ -261,11 +261,145 @@ const SingleProduct = catchAsyncError(async (req, res, next) => {
 });
 
 // In productController.js - FIXED postReview function
+// const postReview = catchAsyncError(async (req, res, next) => {
+//   const { productId } = req.params;
+//   const { ratings, comments } = req.body;
+//   console.log("Posting review for product:", productId, "User:", req.user.id);
+//   console.log("Review data:", { ratings, comments });
+
+//   if (!ratings || !comments) {
+//     return next(
+//       new ErrorHandler("Please Provide First Review and Comments", 400),
+//     );
+//   }
+
+//   // Purchase check - using order_items (plural)
+//   try {
+//     const purchaseCheckQuery = `
+//       SELECT oi.product_id
+//       FROM order_items oi
+//       JOIN orders o ON o.id = oi.order_id
+//       JOIN payments p ON p.order_id = o.id
+//       WHERE o.buyer_id = $1
+//       AND oi.product_id = $2
+//       AND p.payment_status = 'Paid'
+//       LIMIT 1
+//     `;
+
+//     const { rows } = await database.query(purchaseCheckQuery, [
+//       req.user.id,
+//       productId,
+//     ]);
+
+//     console.log("Purchase check result:", rows);
+
+//     if (rows.length === 0) {
+//       // For testing, you might want to comment this out temporarily
+//       return res.status(403).json({
+//         success: false,
+//         message: "You can only review a product you have purchased",
+//       });
+//     }
+//   } catch (error) {
+//     console.error("Purchase check error:", error.message);
+//     // For development, you might skip this check
+//     // return next(new ErrorHandler("Error checking purchase: " + error.message, 500));
+//     console.log("Skipping purchase check for development");
+//   }
+
+//   const productSearch = await database.query(
+//     `SELECT * FROM products WHERE id = $1`,
+//     [productId],
+//   );
+
+//   if (productSearch.rows.length === 0) {
+//     return next(new ErrorHandler("Product not found", 404));
+//   }
+
+//   const isAlreadyReviewed = await database.query(
+//     `SELECT * FROM reviews WHERE product_id = $1 AND user_id = $2`,
+//     [productId, req.user.id],
+//   );
+
+//   let review;
+//   if (isAlreadyReviewed.rows.length > 0) {
+//     // Update existing review
+//     review = await database.query(
+//       `UPDATE reviews SET rating = $1, comment = $2
+//        WHERE product_id = $3 AND user_id = $4 RETURNING *`,
+//       [ratings, comments, productId, req.user.id],
+//     );
+//   } else {
+//     // Insert new review - make sure column names match your table
+//     review = await database.query(
+//       `INSERT INTO reviews (product_id, user_id, comment, rating)
+//        VALUES($1, $2, $3, $4) RETURNING *`,
+//       [productId, req.user.id, comments, ratings],
+//     );
+//   }
+
+//   // Update product average rating - FIXED: use 'ratings' column
+//   const allReview = await database.query(
+//     `SELECT AVG(rating) AS avg_rating FROM reviews WHERE product_id = $1`,
+//     [productId],
+//   );
+
+//   const newAvgRating = allReview.rows[0].avg_rating || 0;
+//   console.log("New average rating:", newAvgRating);
+
+//   const updatedProduct = await database.query(
+//     `UPDATE products SET ratings = $1 WHERE id = $2 RETURNING *`,
+//     [newAvgRating, productId],
+//   );
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Review Posted Successfully",
+//     review: review.rows[0],
+//     product: updatedProduct.rows[0],
+//   });
+// });
+// // Delete Review
+
+// // In productController.js - FIXED DeleteReview function
+// const DeleteReview = catchAsyncError(async (req, res, next) => {
+//   const { productId } = req.params;
+//   console.log("Deleting review for product:", productId, "User:", req.user.id);
+//   // First check if review exists
+//   const checkReview = await database.query(
+//     `SELECT * FROM reviews WHERE product_id = $1 AND user_id = $2`,
+//     [productId, req.user.id],
+//   );
+//   if (checkReview.rows.length === 0) {
+//     return next(new ErrorHandler("Review not found!", 404));
+//   }
+//   const result = await database.query(
+//     `DELETE FROM reviews WHERE product_id = $1 AND user_id = $2 RETURNING *`,
+//     [productId, req.user.id],
+//   );
+//   console.log("Deleted review:", result.rows[0]);
+//   // Update product average rating - FIXED: use 'ratings' column
+//   const allReview = await database.query(
+//     `SELECT AVG(rating) AS avg_rating FROM reviews WHERE product_id = $1`,
+//     [productId],
+//   );
+//   const newAvgRating = allReview.rows[0].avg_rating || 0;
+//   console.log("Updated average rating after deletion:", newAvgRating);
+//   const updatedProduct = await database.query(
+//     `UPDATE products SET ratings = $1 WHERE id = $2 RETURNING *`,
+//     [newAvgRating, productId],
+//   );
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Your Review has been Deleted successfully",
+//     review: result.rows[0],
+//     product: updatedProduct.rows[0],
+//   });
+// });
 const postReview = catchAsyncError(async (req, res, next) => {
   const { productId } = req.params;
   const { ratings, comments } = req.body;
-  console.log("Posting review for product:", productId, "User:", req.user.id);
-  console.log("Review data:", { ratings, comments });
 
   if (!ratings || !comments) {
     return next(
@@ -273,28 +407,19 @@ const postReview = catchAsyncError(async (req, res, next) => {
     );
   }
 
-  // Purchase check - using order_items (plural)
   try {
     const purchaseCheckQuery = `
-      SELECT oi.product_id
-      FROM order_items oi
+      SELECT oi.product_id FROM order_items oi
       JOIN orders o ON o.id = oi.order_id
       JOIN payments p ON p.order_id = o.id
-      WHERE o.buyer_id = $1
-      AND oi.product_id = $2
-      AND p.payment_status = 'Paid'
-      LIMIT 1
+      WHERE o.buyer_id = $1 AND oi.product_id = $2
+      AND p.payment_status = 'Paid' LIMIT 1
     `;
-
     const { rows } = await database.query(purchaseCheckQuery, [
       req.user.id,
       productId,
     ]);
-
-    console.log("Purchase check result:", rows);
-
     if (rows.length === 0) {
-      // For testing, you might want to comment this out temporarily
       return res.status(403).json({
         success: false,
         message: "You can only review a product you have purchased",
@@ -302,16 +427,12 @@ const postReview = catchAsyncError(async (req, res, next) => {
     }
   } catch (error) {
     console.error("Purchase check error:", error.message);
-    // For development, you might skip this check
-    // return next(new ErrorHandler("Error checking purchase: " + error.message, 500));
-    console.log("Skipping purchase check for development");
   }
 
   const productSearch = await database.query(
     `SELECT * FROM products WHERE id = $1`,
     [productId],
   );
-
   if (productSearch.rows.length === 0) {
     return next(new ErrorHandler("Product not found", 404));
   }
@@ -323,32 +444,27 @@ const postReview = catchAsyncError(async (req, res, next) => {
 
   let review;
   if (isAlreadyReviewed.rows.length > 0) {
-    // Update existing review
     review = await database.query(
-      `UPDATE reviews SET ratings = $1, comment = $2 
+      `UPDATE reviews SET rating = $1, comment = $2 
        WHERE product_id = $3 AND user_id = $4 RETURNING *`,
       [ratings, comments, productId, req.user.id],
     );
   } else {
-    // Insert new review - make sure column names match your table
     review = await database.query(
-      `INSERT INTO reviews (product_id, user_id, comment, ratings) 
+      `INSERT INTO reviews (product_id, user_id, comment, rating) 
        VALUES($1, $2, $3, $4) RETURNING *`,
-      [productId, req.user.id, comments, ratings],
+      [productId, req.user.id, comments, ratings], // ✓ "ratings" fix
     );
   }
 
-  // Update product average rating - FIXED: use 'ratings' column
   const allReview = await database.query(
-    `SELECT AVG(ratings) AS avg_rating FROM reviews WHERE product_id = $1`,
+    `SELECT AVG(rating) AS avg_rating FROM reviews WHERE product_id = $1`,
     [productId],
   );
-
   const newAvgRating = allReview.rows[0].avg_rating || 0;
-  console.log("New average rating:", newAvgRating);
 
   const updatedProduct = await database.query(
-    `UPDATE products SET ratings = $1 WHERE id = $2 RETURNING *`,
+    `UPDATE products SET ratings = $1 WHERE id = $2 RETURNING *`, // ✓ "ratings" fix
     [newAvgRating, productId],
   );
 
@@ -359,13 +475,10 @@ const postReview = catchAsyncError(async (req, res, next) => {
     product: updatedProduct.rows[0],
   });
 });
-// Delete Review
 
-// In productController.js - FIXED DeleteReview function
 const DeleteReview = catchAsyncError(async (req, res, next) => {
   const { productId } = req.params;
-  console.log("Deleting review for product:", productId, "User:", req.user.id);
-  // First check if review exists
+
   const checkReview = await database.query(
     `SELECT * FROM reviews WHERE product_id = $1 AND user_id = $2`,
     [productId, req.user.id],
@@ -373,20 +486,20 @@ const DeleteReview = catchAsyncError(async (req, res, next) => {
   if (checkReview.rows.length === 0) {
     return next(new ErrorHandler("Review not found!", 404));
   }
+
   const result = await database.query(
     `DELETE FROM reviews WHERE product_id = $1 AND user_id = $2 RETURNING *`,
     [productId, req.user.id],
   );
-  console.log("Deleted review:", result.rows[0]);
-  // Update product average rating - FIXED: use 'ratings' column
+
   const allReview = await database.query(
-    `SELECT AVG(ratings) AS avg_rating FROM reviews WHERE product_id = $1`,
+    `SELECT AVG(rating) AS avg_rating FROM reviews WHERE product_id = $1`,
     [productId],
   );
   const newAvgRating = allReview.rows[0].avg_rating || 0;
-  console.log("Updated average rating after deletion:", newAvgRating);
+
   const updatedProduct = await database.query(
-    `UPDATE products SET ratings = $1 WHERE id = $2 RETURNING *`,
+    `UPDATE products SET ratings = $1 WHERE id = $2 RETURNING *`, // ✓ "ratings" fix
     [newAvgRating, productId],
   );
 
@@ -397,7 +510,6 @@ const DeleteReview = catchAsyncError(async (req, res, next) => {
     product: updatedProduct.rows[0],
   });
 });
-
 // productController.js - Update this function
 const fetchAIFilteredProducts = catchAsyncError(async (req, res, next) => {
   const { UserPrompt } = req.body;
