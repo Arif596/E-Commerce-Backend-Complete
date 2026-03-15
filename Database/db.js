@@ -22,7 +22,7 @@ const database = new Client({
     await database.connect();
     console.log("Database is Connected Successfully");
   } catch (error) {
-    console.log("Database connection failed");
+    console.log("Database connection failed", error);
   }
 })();
 module.exports = database;
