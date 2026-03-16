@@ -21,9 +21,17 @@ const jwt = require("jsonwebtoken");
 const isAuthenticated = catchAsyncError(async (req, res, next) => {
   const origin = req.headers.origin || "";
   let token;
-  if (origin.includes("5174")) {
+  if (
+    origin.includes(
+      "https://ecommerce-mernstack-admin-dashboard.netlify.app",
+    ) ||
+    origin.includes("5174")
+  ) {
     token = req.cookies.adminToken;
-  } else if (origin.includes("5173")) {
+  } else if (
+    origin.includes("https://ecommerce-mernstack-ai-web-app.netlify.app") ||
+    origin.includes("5173")
+  ) {
     token = req.cookies.userToken;
   } else {
     token = req.cookies.adminToken || req.cookies.userToken;
