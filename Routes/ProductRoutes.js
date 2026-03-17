@@ -19,7 +19,7 @@ router.post(
   "/admin/create",
   isAuthenticated,
   authorizedRoles("Admin"),
-  createProduct
+  createProduct,
 );
 // Get all   product
 router.get("/all-product", FetchAllProduct);
@@ -28,14 +28,14 @@ router.put(
   "/admin/update-product/:productId",
   isAuthenticated,
   authorizedRoles("Admin"),
-  updatedProduct
+  updatedProduct,
 );
 // Delete product
 router.delete(
   "/admin/delete-product/:productId",
   isAuthenticated,
   authorizedRoles("Admin"),
-  DeleteProduct
+  DeleteProduct,
 );
 // Post review or Update review
 router.put("/post-new/review/:productId", isAuthenticated, postReview);
